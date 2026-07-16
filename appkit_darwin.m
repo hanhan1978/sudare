@@ -304,7 +304,7 @@ static NSInteger gScreenIndex = 0;
 
 - (BOOL)windowShouldClose:(NSWindow *)sender {
 	if (sender == gControlWindow) {
-		[self quitApp:nil];
+		[gControlWindow orderOut:nil];
 		return NO;
 	}
 	return YES;
