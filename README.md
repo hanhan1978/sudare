@@ -11,18 +11,14 @@ macOS app for covering a secondary monitor with a dim, solid overlay.
 - Opacity control in 10% steps
 - Solid dark gray overlay
 
-## Build
-
-```bash
-go build -o bin/sudare
-```
-
-## App Bundle
+## Build App
 
 ```bash
 ./scripts/build_app.sh
 open dist/sudare.app
 ```
+
+The build script creates `dist/sudare.app` with the bundled app icon from `assets/AppIcon.png`.
 
 ## Controls
 
