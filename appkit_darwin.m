@@ -129,9 +129,9 @@ static NSInteger gScreenIndex = 0;
 		return;
 	}
 
-	gStatusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:120.0] retain];
+	gStatusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:32.0] retain];
 	gStatusItem.visible = YES;
-	gStatusItem.button.title = @"sudare menu";
+	gStatusItem.button.title = @"簾";
 	gStatusItem.button.toolTip = @"sudare";
 
 	NSMenu *menu = [[NSMenu alloc] initWithTitle:@"sudare"];
