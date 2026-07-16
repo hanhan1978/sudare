@@ -4,6 +4,8 @@ void app_start(void);
 
 static NSWindow *gControlWindow = nil;
 static NSWindow *gOverlayWindow = nil;
+static NSStatusItem *gStatusItem = nil;
+static NSMenuItem *gStatusToggleItem = nil;
 static NSPopUpButton *gDisplayPopup = nil;
 static NSPopUpButton *gOpacityPopup = nil;
 static NSButton *gToggleButton = nil;
@@ -13,12 +15,16 @@ static BOOL gVisible = NO;
 static NSInteger gOpacityPercent = 60;
 static NSInteger gScreenIndex = 0;
 
-@interface AppDelegate : NSObject <NSApplicationDelegate>
+@interface AppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 - (void)buildUI;
+- (void)buildStatusItem;
+- (void)scheduleStatusItemBuild;
+- (void)updateStatusMenu;
 - (void)refreshDisplayMenu;
 - (void)refreshControls;
 - (void)rebuildOverlay;
 - (void)toggleOverlay:(id)sender;
+- (void)showSettings:(id)sender;
 - (void)selectOpacity:(id)sender;
 - (void)selectDisplay:(id)sender;
 - (void)quitApp:(id)sender;
@@ -30,19 +36,16 @@ static NSInteger gScreenIndex = 0;
 	[self buildUI];
 }
 
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {
-	return NO;
-}
-
 - (void)buildUI {
 	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
 	NSRect frame = NSMakeRect(0, 0, 320, 180);
 	gControlWindow = [[NSWindow alloc] initWithContentRect:frame
-	                                             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable
+	                                             styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable
 	                                               backing:NSBackingStoreBuffered
 	                                                 defer:NO];
 	gControlWindow.title = @"sudare";
+	gControlWindow.delegate = self;
 	gControlWindow.releasedWhenClosed = NO;
 	gControlWindow.level = NSScreenSaverWindowLevel + 2;
 	gControlWindow.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
@@ -111,6 +114,56 @@ static NSInteger gScreenIndex = 0;
 
 	[gControlWindow makeKeyAndOrderFront:nil];
 	[NSApp activateIgnoringOtherApps:YES];
+	[self scheduleStatusItemBuild];
+}
+
+- (void)scheduleStatusItemBuild {
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		[self buildStatusItem];
+		[self updateStatusMenu];
+	});
+}
+
+- (void)buildStatusItem {
+	if (gStatusItem != nil) {
+		return;
+	}
+
+	gStatusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:120.0] retain];
+	gStatusItem.visible = YES;
+	gStatusItem.button.title = @"sudare menu";
+	gStatusItem.button.toolTip = @"sudare";
+
+	NSMenu *menu = [[NSMenu alloc] initWithTitle:@"sudare"];
+
+	gStatusToggleItem = [[NSMenuItem alloc] initWithTitle:@"簾を下ろす"
+	                                               action:@selector(toggleOverlay:)
+	                                        keyEquivalent:@""];
+	gStatusToggleItem.target = self;
+	[menu addItem:gStatusToggleItem];
+
+	NSMenuItem *settingsItem = [[NSMenuItem alloc] initWithTitle:@"設定を表示"
+	                                                      action:@selector(showSettings:)
+	                                               keyEquivalent:@""];
+	settingsItem.target = self;
+	[menu addItem:settingsItem];
+
+	[menu addItem:[NSMenuItem separatorItem]];
+
+	NSMenuItem *quitItem = [[NSMenuItem alloc] initWithTitle:@"終了"
+	                                                  action:@selector(quitApp:)
+	                                           keyEquivalent:@""];
+	quitItem.target = self;
+	[menu addItem:quitItem];
+
+	gStatusItem.menu = menu;
+}
+
+- (void)updateStatusMenu {
+	if (gStatusToggleItem == nil) {
+		return;
+	}
+	gStatusToggleItem.title = gVisible ? @"簾を上げる" : @"簾を下ろす";
 }
 
 - (void)screenParametersChanged:(NSNotification *)notification {
@@ -157,6 +210,7 @@ static NSInteger gScreenIndex = 0;
 	gToggleButton.title = gVisible ? @"簾を上げる" : @"簾を下ろす";
 	[gOpacityPopup selectItemWithTag:gOpacityPercent];
 	gStatusLabel.stringValue = gVisible ? @"表示中" : @"非表示";
+	[self updateStatusMenu];
 }
 
 - (void)rebuildOverlay {
@@ -205,10 +259,24 @@ static NSInteger gScreenIndex = 0;
 }
 
 - (void)toggleOverlay:(id)sender {
+	if ([sender isKindOfClass:[NSMenuItem class]]) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			gVisible = !gVisible;
+			[self refreshControls];
+			[self rebuildOverlay];
+		});
+		return;
+	}
+
 	gVisible = !gVisible;
 	[self refreshControls];
 	[self rebuildOverlay];
 	[gControlWindow makeKeyAndOrderFront:nil];
+}
+
+- (void)showSettings:(id)sender {
+	[gControlWindow makeKeyAndOrderFront:nil];
+	[NSApp activateIgnoringOtherApps:YES];
 }
 
 - (void)selectOpacity:(id)sender {
@@ -232,6 +300,14 @@ static NSInteger gScreenIndex = 0;
 		gOverlayWindow = nil;
 	}
 	[NSApp terminate:nil];
+}
+
+- (BOOL)windowShouldClose:(NSWindow *)sender {
+	if (sender == gControlWindow) {
+		[self quitApp:nil];
+		return NO;
+	}
+	return YES;
 }
 
 @end
